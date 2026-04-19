@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Group Fitness Interval Timer</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; margin: 0; padding: 0; background: #121212; color: #f5f5f5; }
+    .page { max-width: 840px; margin: 0 auto; padding: 24px; }
+    h1 { margin-bottom: 12px; font-size: 2rem; text-align: center; }
+    .card { background: #1f1f1f; border: 1px solid #333; border-radius: 18px; padding: 20px; margin-bottom: 20px; }
+    .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+    label { display: flex; flex-direction: column; font-size: 0.9rem; color: #cfd8dc; }
+    select, input[type="number"] { width: 110px; padding: 10px 12px; margin-top: 6px; border-radius: 12px; border: 1px solid #444; background: #141414; color: #eee; }
+    .interval-row { display: grid; grid-template-columns: 115px 70px 70px 90px; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .interval-row label { margin: 0; min-width: 0; }
+    .interval-row select, .interval-row input[type="number"] { width: 100%; box-sizing: border-box; }
+    .interval-row button { width: 100%; min-width: 0; padding: 8px 10px; margin: 0; justify-self: stretch; box-sizing: border-box; }
+    input[type="checkbox"] { margin-right: 10px; transform: scale(1.2); }
+    button { border: none; border-radius: 12px; padding: 12px 20px; margin: 8px 6px 0 0; font-size: 1rem; cursor: pointer; background: #2979ff; color: white; transition: transform 0.1s ease; }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { background: #555; cursor: not-allowed; }
+    .status { font-size: 1.2rem; margin-bottom: 8px; }
+    .timer { font-size: 4.8rem; letter-spacing: 0.1em; margin: 0; }
+    .details { font-size: 1rem; color: #b0bec5; margin-top: 8px; }
+    .footer { margin-top: 16px; color: #90a4ae; font-size: 0.95rem; }
+    #timerCard:fullscreen, #timerCard:-webkit-full-screen, #timerCard:-moz-full-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      background: #121212;
+      border: none;
+      border-radius: 0;
+    }
+    #timerCard:fullscreen .status, #timerCard:-webkit-full-screen .status, #timerCard:-moz-full-screen .status {
+      font-size: 3rem;
+      margin: 0;
+    }
+    #timerCard:fullscreen .timer, #timerCard:-webkit-full-screen .timer, #timerCard:-moz-full-screen .timer {
+      font-size: 12rem;
+      margin: 20px 0;
+    }
+    #timerCard:fullscreen .details, #timerCard:-webkit-full-screen .details, #timerCard:-moz-full-screen .details {
+      font-size: 2.5rem;
+      margin: 0;
+    }
+    #timerCard:fullscreen div:last-child, #timerCard:-webkit-full-screen div:last-child, #timerCard:-moz-full-screen div:last-child {
+      margin-top: 30px;
+    }
+    #timerCard:fullscreen button, #timerCard:-webkit-full-screen button, #timerCard:-moz-full-screen button {
+      font-size: 1.5rem;
+      padding: 16px 32px;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Group Fitness Interval Timer</h1>
+    <div class="card">
+      <div style="margin-top: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+          <strong>Interval sequence</strong>
+          <button id="addStepBtn" type="button">Add interval</button>
+        </div>
+        <div id="intervalList"></div>
+      </div>
+      <div class="row" style="margin-top: 20px;">
+        <label>Rounds
+          <input id="rounds" type="number" min="1" value="8" />
+        </label>
+        <label style="flex-direction: row; align-items: center; margin-top: 18px;">
+          <input id="repeat" type="checkbox" checked />
+          Repeat session automatically
+        </label>
+        <label style="flex-direction: row; align-items: center; margin-top: 18px;">
+          <input id="fullscreen" type="checkbox" checked />
+          Fullscreen on start
+        </label>
+      </div>
+      <div class="row" style="margin-top: 20px;">
+        <label>Timer name
+          <input id="timerName" type="text" placeholder="e.g., HIIT Session" style="width: 200px;" />
+        </label>
+        <button id="saveBtn" type="button" style="margin-top: 24px;">Save Timer</button>
+      </div>
+      <div class="row" style="margin-top: 20px;">
+        <label>Load saved timer
+          <select id="loadTimer">
+            <option value="">-- Select a timer --</option>
+          </select>
+        </label>
+        <button id="deleteBtn" type="button" style="margin-top: 24px;" disabled>Delete Selected</button>
+      </div>
+    </div>
+
+    <div class="card" style="text-align:center;" id="timerCard">
+      <div class="status" id="status">Ready to start</div>
+      <p class="timer" id="time">00:30</p>
+      <div class="details" id="details">High intensity, step 1 of 4, round 1 of 8</div>
+      <div style="margin-top: 20px;">
+        <button id="startBtn">Start</button>
+        <button id="pauseBtn" disabled>Pause</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="footer">v0.1</code></div>
+  </div>
+
+  <script>
+    const roundsInput = document.getElementById('rounds');
+    const repeatInput = document.getElementById('repeat');
+    const fullscreenInput = document.getElementById('fullscreen');
+    const intervalList = document.getElementById('intervalList');
+    const addStepBtn = document.getElementById('addStepBtn');
+    const timerNameInput = document.getElementById('timerName');
+    const saveBtn = document.getElementById('saveBtn');
+    const loadTimerSelect = document.getElementById('loadTimer');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const statusEl = document.getElementById('status');
+    const timeEl = document.getElementById('time');
+    const detailsEl = document.getElementById('details');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const timerCard = document.getElementById('timerCard');
+
+    let timerId = null;
+    let timeLeft = 0;
+    let round = 1;
+    let stepIndex = 0;
+    let active = false;
+
+    function enterFullscreen() {
+      const elem = timerCard;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      } else if (elem.mozRequestFullScreen) {
+        elem.mozRequestFullScreen();
+      } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+      }
+    }
+
+    function exitFullscreen() {
+      if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    }
+
+    function createIntervalRow(step = { type: 'High', min: 0, sec: 30 }) {
+      const row = document.createElement('div');
+      row.className = 'interval-row';
+      row.innerHTML = `
+        <label>
+          Type
+          <select class="interval-type">
+            <option value="High">High</option>
+            <option value="Low">Low</option>
+            <option value="Rest">Rest</option>
+          </select>
+        </label>
+        <label>
+          Minutes
+          <input class="interval-min" type="number" min="0" value="${step.min}" />
+        </label>
+        <label>
+          Seconds
+          <input class="interval-sec" type="number" min="0" max="59" value="${step.sec}" />
+        </label>
+        <button type="button" class="remove-step">Remove</button>
+      `;
+      const typeSelect = row.querySelector('.interval-type');
+      const minInput = row.querySelector('.interval-min');
+      const secInput = row.querySelector('.interval-sec');
+      const removeBtn = row.querySelector('.remove-step');
+      typeSelect.value = step.type;
+      const resetOnChange = () => resetTimer();
+      typeSelect.addEventListener('change', resetOnChange);
+      minInput.addEventListener('input', resetOnChange);
+      secInput.addEventListener('input', resetOnChange);
+      removeBtn.addEventListener('click', () => {
+        if (intervalList.children.length > 1) {
+          row.remove();
+          resetTimer();
+        }
+      });
+      return row;
+    }
+
+    function setDefaultIntervals() {
+      intervalList.innerHTML = '';
+      const defaults = [
+        { type: 'High', min: 0, sec: 30 },
+        { type: 'Low', min: 0, sec: 15 },
+        { type: 'High', min: 0, sec: 30 },
+        { type: 'Low', min: 0, sec: 15 },
+      ];
+      defaults.forEach(step => intervalList.appendChild(createIntervalRow(step)));
+    }
+
+    function getIntervalData() {
+      return Array.from(intervalList.children).map(row => {
+        const type = row.querySelector('.interval-type').value;
+        const min = Number(row.querySelector('.interval-min').value) || 0;
+        const sec = Number(row.querySelector('.interval-sec').value) || 0;
+        return { type, min, sec };
+      });
+    }
+
+    function loadIntervalData(intervals) {
+      intervalList.innerHTML = '';
+      intervals.forEach(step => intervalList.appendChild(createIntervalRow(step)));
+    }
+
+    function saveTimer() {
+      const name = timerNameInput.value.trim();
+      if (!name) {
+        alert('Please enter a timer name');
+        return;
+      }
+      const timerData = {
+        intervals: getIntervalData(),
+        rounds: roundsInput.value,
+        repeat: repeatInput.checked,
+        fullscreen: fullscreenInput.checked,
+      };
+      localStorage.setItem(`timer_${name}`, JSON.stringify(timerData));
+      timerNameInput.value = '';
+      populateSavedTimers();
+      alert(`Timer "${name}" saved!`);
+    }
+
+    function populateSavedTimers() {
+      loadTimerSelect.innerHTML = '<option value="">-- Select a timer --</option>';
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('timer_'));
+      keys.forEach(key => {
+        const name = key.replace('timer_', '');
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        loadTimerSelect.appendChild(option);
+      });
+      deleteBtn.disabled = loadTimerSelect.options.length <= 1;
+    }
+
+    function loadTimer() {
+      const name = loadTimerSelect.value;
+      if (!name) return;
+      const data = JSON.parse(localStorage.getItem(`timer_${name}`));
+      loadIntervalData(data.intervals);
+      roundsInput.value = data.rounds;
+      repeatInput.checked = data.repeat;
+      fullscreenInput.checked = data.fullscreen;
+      resetTimer();
+    }
+
+    function deleteTimer() {
+      const name = loadTimerSelect.value;
+      if (!name) return;
+      if (confirm(`Delete timer "${name}"?`)) {
+        localStorage.removeItem(`timer_${name}`);
+        populateSavedTimers();
+        resetTimer();
+      }
+    }
+
+    function getSettings() {
+      const steps = Array.from(intervalList.children).map(row => {
+        const type = row.querySelector('.interval-type').value;
+        const min = Number(row.querySelector('.interval-min').value) || 0;
+        const sec = Number(row.querySelector('.interval-sec').value) || 0;
+        return { type, duration: Math.max(1, min * 60 + sec) };
+      }).filter(step => step.duration > 0);
+      return {
+        steps: steps.length ? steps : [{ type: 'High', duration: 30 }],
+        rounds: Math.max(1, Number(roundsInput.value) || 1),
+        repeat: repeatInput.checked,
+      };
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const secs = (seconds % 60).toString().padStart(2, '0');
+      return `${mins}:${secs}`;
+    }
+
+    function getPhaseLabel(type) {
+      if (type === 'High') return 'High Intensity';
+      if (type === 'Low') return 'Low Intensity';
+      return 'Rest';
+    }
+
+    function updateDisplay() {
+      const settings = getSettings();
+      const step = settings.steps[stepIndex];
+      const phase = getPhaseLabel(step.type);
+      const displayRound = Math.min(round, settings.rounds);
+      const stepNumber = stepIndex + 1;
+      statusEl.textContent = active ? `${phase}` : `${phase} ready`;
+      timeEl.textContent = formatTime(timeLeft);
+      detailsEl.textContent = `${phase}, step ${stepNumber} of ${settings.steps.length}, round ${displayRound} of ${settings.rounds}${settings.repeat ? ' · repeating enabled' : ''}`;
+      pauseBtn.disabled = !active;
+    }
+
+    function beep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 880;
+        gain.gain.value = 0.15;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      } catch (error) {
+        console.warn('Audio unavailable', error);
+      }
+    }
+
+    function advanceStep() {
+      const settings = getSettings();
+      stepIndex += 1;
+      if (stepIndex >= settings.steps.length) {
+        round += 1;
+        if (round > settings.rounds) {
+          if (settings.repeat) {
+            round = 1;
+            stepIndex = 0;
+            timeLeft = settings.steps[0].duration;
+            statusEl.textContent = 'Session repeating';
+            beep();
+            return;
+          }
+          clearInterval(timerId);
+          timerId = null;
+          active = false;
+          statusEl.textContent = 'Done — great work!';
+          detailsEl.textContent = `Completed ${settings.rounds} rounds.`;
+          pauseBtn.disabled = true;
+          exitFullscreen();
+          beep();
+          return;
+        }
+        stepIndex = 0;
+      }
+      timeLeft = settings.steps[stepIndex].duration;
+      const nextType = settings.steps[stepIndex].type;
+      if (nextType === 'High') {
+        statusEl.textContent = 'Back to high intensity';
+      } else if (nextType === 'Low') {
+        statusEl.textContent = 'Recover now';
+      } else {
+        statusEl.textContent = 'Take a rest';
+      }
+      beep();
+    }
+
+    function startTimer() {
+      const settings = getSettings();
+      if (!timerId) {
+        if (!active) {
+          if (timeLeft <= 0 || !settings.steps[stepIndex]) {
+            stepIndex = 0;
+            round = 1;
+            timeLeft = settings.steps[0].duration;
+          }
+          active = true;
+          pauseBtn.disabled = false;
+          statusEl.textContent = 'Started';
+          if (fullscreenInput.checked) {
+            enterFullscreen();
+          }
+        }
+        timerId = setInterval(() => {
+          if (timeLeft <= 0) {
+            advanceStep();
+          } else {
+            timeLeft -= 1;
+          }
+          updateDisplay();
+        }, 1000);
+      }
+      updateDisplay();
+    }
+
+    function pauseTimer() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+      active = false;
+      statusEl.textContent = 'Paused';
+      pauseBtn.disabled = true;
+      exitFullscreen();
+      updateDisplay();
+    }
+
+    function resetTimer() {
+      const settings = getSettings();
+      pauseTimer();
+      stepIndex = 0;
+      round = 1;
+      timeLeft = settings.steps[0].duration;
+      statusEl.textContent = 'Ready to start';
+      exitFullscreen();
+      updateDisplay();
+    }
+
+    function onInputChanged() {
+      resetTimer();
+    }
+
+    addStepBtn.addEventListener('click', () => {
+      intervalList.appendChild(createIntervalRow({ type: 'Low', min: 0, sec: 15 }));
+      resetTimer();
+    });
+
+    saveBtn.addEventListener('click', saveTimer);
+    loadTimerSelect.addEventListener('change', loadTimer);
+    deleteBtn.addEventListener('click', deleteTimer);
+
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+    [roundsInput, repeatInput, fullscreenInput].forEach(input => input.addEventListener('input', onInputChanged));
+
+    setDefaultIntervals();
+    populateSavedTimers();
+    window.addEventListener('load', resetTimer);
+  </script>
+</body>
+</html>

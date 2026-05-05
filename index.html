@@ -21,26 +21,48 @@
     button:hover { transform: translateY(-1px); }
     button:disabled { background: #555; cursor: not-allowed; }
     .status { font-size: 1.2rem; margin-bottom: 8px; }
+    .timer-name { font-size: 1.6rem; margin-bottom: 8px; color: #e3f2fd; }
     .timer { font-size: 4.8rem; letter-spacing: 0.1em; margin: 0; }
     .details { font-size: 1rem; color: #b0bec5; margin-top: 8px; }
     .footer { margin-top: 16px; color: #90a4ae; font-size: 0.95rem; }
-    #timerCard:fullscreen, #timerCard:-webkit-full-screen, #timerCard:-moz-full-screen {
+    .fullscreen-card {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      gap: 24px;
       margin: 0;
-      padding: 0;
+      padding: 0 24px;
       background: #121212;
       border: none;
       border-radius: 0;
+      box-sizing: border-box;
+      text-align: center;
     }
-    #timerCard:fullscreen .status, #timerCard:-webkit-full-screen .status, #timerCard:-moz-full-screen .status {
+    #timerCard:fullscreen, #timerCard:-webkit-full-screen, #timerCard:-moz-full-screen, #timerCard:-ms-fullscreen,
+    :fullscreen #timerCard, :-webkit-full-screen #timerCard, :-moz-full-screen #timerCard, :-ms-fullscreen #timerCard {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      margin: 0;
+      padding: 0 24px;
+      background: #121212;
+      border: none;
+      border-radius: 0;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    #timerCard:fullscreen .status, #timerCard:-webkit-full-screen .status, #timerCard:-moz-full-screen .status, #timerCard:-ms-fullscreen .status {
       font-size: 3rem;
       margin: 0;
     }
@@ -103,6 +125,7 @@
     </div>
 
     <div class="card" style="text-align:center;" id="timerCard">
+      <div class="timer-name" id="timerNameDisplay">Untitled Timer</div>
       <div class="status" id="status">Ready to start</div>
       <p class="timer" id="time">00:30</p>
       <div class="details" id="details">High intensity, step 1 of 4, round 1 of 8</div>
@@ -113,7 +136,7 @@
       </div>
     </div>
 
-    <div class="footer">v0.1</code></div>
+    <div class="footer">v0.2</code></div>
   </div>
 
   <script>
@@ -129,6 +152,7 @@
     const statusEl = document.getElementById('status');
     const timeEl = document.getElementById('time');
     const detailsEl = document.getElementById('details');
+    const timerNameDisplay = document.getElementById('timerNameDisplay');
     const startBtn = document.getElementById('startBtn');
     const pauseBtn = document.getElementById('pauseBtn');
     const resetBtn = document.getElementById('resetBtn');
@@ -139,6 +163,8 @@
     let round = 1;
     let stepIndex = 0;
     let active = false;
+    let isCountdown = false;
+    let countdownTime = 0;
 
     function enterFullscreen() {
       const elem = timerCard;
@@ -152,6 +178,23 @@
         elem.msRequestFullscreen();
       }
     }
+
+    function updateFullscreenClass() {
+      const isFull = document.fullscreenElement === timerCard
+        || document.webkitFullscreenElement === timerCard
+        || document.mozFullScreenElement === timerCard
+        || document.msFullscreenElement === timerCard;
+      timerCard.classList.toggle('fullscreen-card', Boolean(isFull));
+    }
+
+    function onFullscreenChange() {
+      updateFullscreenClass();
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('mozfullscreenchange', onFullscreenChange);
+    document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
     function exitFullscreen() {
       if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
@@ -271,6 +314,7 @@
       roundsInput.value = data.rounds;
       repeatInput.checked = data.repeat;
       fullscreenInput.checked = data.fullscreen;
+      timerNameInput.value = name;
       resetTimer();
     }
 
@@ -312,27 +356,52 @@
 
     function updateDisplay() {
       const settings = getSettings();
-      const step = settings.steps[stepIndex];
-      const phase = getPhaseLabel(step.type);
-      const displayRound = Math.min(round, settings.rounds);
-      const stepNumber = stepIndex + 1;
-      statusEl.textContent = active ? `${phase}` : `${phase} ready`;
-      timeEl.textContent = formatTime(timeLeft);
-      detailsEl.textContent = `${phase}, step ${stepNumber} of ${settings.steps.length}, round ${displayRound} of ${settings.rounds}${settings.repeat ? ' · repeating enabled' : ''}`;
+      const timerName = timerNameInput.value.trim() || 'Untitled Timer';
+      timerNameDisplay.textContent = timerName;
+      if (isCountdown) {
+        statusEl.textContent = 'Get Ready';
+        timeEl.textContent = countdownTime.toString();
+        detailsEl.textContent = 'Starting in...';
+      } else {
+        const step = settings.steps[stepIndex];
+        const phase = getPhaseLabel(step.type);
+        const displayRound = Math.min(round, settings.rounds);
+        const stepNumber = stepIndex + 1;
+        statusEl.textContent = active ? `${phase}` : `${phase} ready`;
+        timeEl.textContent = formatTime(timeLeft);
+        detailsEl.textContent = `${phase}, step ${stepNumber} of ${settings.steps.length}, round ${displayRound} of ${settings.rounds}${settings.repeat ? ' · repeating enabled' : ''}`;
+      }
       pauseBtn.disabled = !active;
     }
 
-    function beep() {
+    function playBeep(type) {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.value = 880;
-        gain.gain.value = 0.15;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
+        let frequencies = [];
+        let durations = [];
+        if (type === 'High') {
+          frequencies = [880, 1100, 1320];
+          durations = [0.08, 0.08, 0.08];
+        } else if (type === 'Low') {
+          frequencies = [660, 550, 440];
+          durations = [0.1, 0.1, 0.1];
+        } else { // Rest
+          frequencies = [440, 330, 220];
+          durations = [0.15, 0.15, 0.15];
+        }
+        let startTime = ctx.currentTime;
+        frequencies.forEach((freq, index) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.2, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, startTime + durations[index]);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + durations[index]);
+          startTime += durations[index];
+        });
       } catch (error) {
         console.warn('Audio unavailable', error);
       }
@@ -349,7 +418,7 @@
             stepIndex = 0;
             timeLeft = settings.steps[0].duration;
             statusEl.textContent = 'Session repeating';
-            beep();
+            playBeep('High');
             return;
           }
           clearInterval(timerId);
@@ -359,7 +428,7 @@
           detailsEl.textContent = `Completed ${settings.rounds} rounds.`;
           pauseBtn.disabled = true;
           exitFullscreen();
-          beep();
+          playBeep('High');
           return;
         }
         stepIndex = 0;
@@ -368,35 +437,44 @@
       const nextType = settings.steps[stepIndex].type;
       if (nextType === 'High') {
         statusEl.textContent = 'Back to high intensity';
+        playBeep('High');
       } else if (nextType === 'Low') {
         statusEl.textContent = 'Recover now';
+        playBeep('Low');
       } else {
         statusEl.textContent = 'Take a rest';
+        playBeep('Rest');
       }
-      beep();
     }
 
     function startTimer() {
       const settings = getSettings();
       if (!timerId) {
         if (!active) {
-          if (timeLeft <= 0 || !settings.steps[stepIndex]) {
-            stepIndex = 0;
-            round = 1;
-            timeLeft = settings.steps[0].duration;
-          }
+          isCountdown = true;
+          countdownTime = 3;
           active = true;
           pauseBtn.disabled = false;
-          statusEl.textContent = 'Started';
           if (fullscreenInput.checked) {
             enterFullscreen();
           }
         }
         timerId = setInterval(() => {
-          if (timeLeft <= 0) {
-            advanceStep();
+          if (isCountdown) {
+            countdownTime--;
+            if (countdownTime <= 0) {
+              isCountdown = false;
+              timeLeft = settings.steps[0].duration;
+              const firstType = settings.steps[0].type;
+              statusEl.textContent = getPhaseLabel(firstType);
+              playBeep(firstType);
+            }
           } else {
-            timeLeft -= 1;
+            if (timeLeft <= 0) {
+              advanceStep();
+            } else {
+              timeLeft -= 1;
+            }
           }
           updateDisplay();
         }, 1000);
@@ -422,6 +500,8 @@
       stepIndex = 0;
       round = 1;
       timeLeft = settings.steps[0].duration;
+      isCountdown = false;
+      countdownTime = 0;
       statusEl.textContent = 'Ready to start';
       exitFullscreen();
       updateDisplay();

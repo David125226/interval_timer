@@ -117,9 +117,21 @@
         <label>Rounds
           <input id="rounds" type="number" min="1" value="8" />
         </label>
-        <label style="flex-direction: row; align-items: center; margin-top: 18px;">
-          <input id="repeat" type="checkbox" checked />
-          Repeat session automatically
+        <label>Repeat sessions
+          <select id="repeatCount">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </label>
+        <label>Delay between sessions
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input id="repeatDelay" type="number" min="0" value="15" style="width: 100px;" />
+            <span style="font-size:0.9rem; color:#90a4ae;">sec</span>
+          </div>
         </label>
         <label style="flex-direction: row; align-items: center; margin-top: 18px;">
           <input id="fullscreen" type="checkbox" checked />
@@ -147,7 +159,7 @@
       <div class="timer-name" id="timerNameDisplay">Untitled Timer</div>
       <div class="status" id="status">Ready to start</div>
       <p class="timer" id="time">00:30</p>
-      <div class="details" id="details">High intensity, step 1 of 4, round 1 of 8</div>
+      <div class="details" id="details">Work, step 1 of 4, round 1 of 8</div>
       <div style="margin-top: 20px;">
         <button id="startBtn">Start</button>
         <button id="pauseBtn" disabled>Pause</button>
@@ -160,7 +172,8 @@
 
   <script>
     const roundsInput = document.getElementById('rounds');
-    const repeatInput = document.getElementById('repeat');
+    const repeatCountInput = document.getElementById('repeatCount');
+    const repeatDelayInput = document.getElementById('repeatDelay');
     const fullscreenInput = document.getElementById('fullscreen');
     const intervalList = document.getElementById('intervalList');
     const addStepBtn = document.getElementById('addStepBtn');
@@ -188,9 +201,12 @@
     let timeLeft = 0;
     let round = 1;
     let stepIndex = 0;
+    let currentSession = 1;
     let active = false;
     let isCountdown = false;
+    let isBetweenRepeats = false;
     let countdownTime = 0;
+    let repeatDelayLeft = 0;
 
     function isFullscreenSupported() {
       return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
@@ -241,15 +257,14 @@
       }
     }
 
-    function createIntervalRow(step = { type: 'High', min: 0, sec: 30 }) {
+    function createIntervalRow(step = { type: 'Work', min: 0, sec: 30 }) {
       const row = document.createElement('div');
       row.className = 'interval-row';
       row.innerHTML = `
         <label>
           Type
           <select class="interval-type">
-            <option value="High">High</option>
-            <option value="Low">Low</option>
+            <option value="Work">Work</option>
             <option value="Rest">Rest</option>
           </select>
         </label>
@@ -284,10 +299,10 @@
     function setDefaultIntervals() {
       intervalList.innerHTML = '';
       const defaults = [
-        { type: 'High', min: 0, sec: 30 },
-        { type: 'Low', min: 0, sec: 15 },
-        { type: 'High', min: 0, sec: 30 },
-        { type: 'Low', min: 0, sec: 15 },
+        { type: 'Work', min: 0, sec: 30 },
+        { type: 'Rest', min: 0, sec: 15 },
+        { type: 'Work', min: 0, sec: 30 },
+        { type: 'Rest', min: 0, sec: 15 },
       ];
       defaults.forEach(step => intervalList.appendChild(createIntervalRow(step)));
     }
@@ -315,7 +330,8 @@
       const timerData = {
         intervals: getIntervalData(),
         rounds: roundsInput.value,
-        repeat: repeatInput.checked,
+        repeatCount: repeatCountInput.value,
+        repeatDelay: repeatDelayInput.value,
         fullscreen: fullscreenInput.checked,
       };
       localStorage.setItem(`timer_${name}`, JSON.stringify(timerData));
@@ -343,7 +359,8 @@
       const data = JSON.parse(localStorage.getItem(`timer_${name}`));
       loadIntervalData(data.intervals);
       roundsInput.value = data.rounds;
-      repeatInput.checked = data.repeat;
+      repeatCountInput.value = data.repeatCount ?? (data.repeat ? 1 : 0) ?? 0;
+      repeatDelayInput.value = data.repeatDelay ?? 15;
       fullscreenInput.checked = data.fullscreen;
       timerNameInput.value = name;
       resetTimer();
@@ -367,9 +384,10 @@
         return { type, duration: Math.max(1, min * 60 + sec) };
       }).filter(step => step.duration > 0);
       return {
-        steps: steps.length ? steps : [{ type: 'High', duration: 30 }],
+        steps: steps.length ? steps : [{ type: 'Work', duration: 30 }],
         rounds: Math.max(1, Number(roundsInput.value) || 1),
-        repeat: repeatInput.checked,
+        repeatCount: Math.max(0, Number(repeatCountInput.value) || 0),
+        repeatDelay: Math.max(0, Number(repeatDelayInput.value) || 0),
       };
     }
 
@@ -380,8 +398,7 @@
     }
 
     function getPhaseLabel(type) {
-      if (type === 'High') return 'High Intensity';
-      if (type === 'Low') return 'Low Intensity';
+      if (type === 'Work' || type === 'High' || type === 'Low') return 'Work';
       return 'Rest';
     }
 
@@ -393,14 +410,18 @@
         statusEl.textContent = 'Get Ready';
         timeEl.textContent = countdownTime.toString();
         detailsEl.textContent = 'Starting in...';
+      } else if (isBetweenRepeats) {
+        const totalSessions = 1 + settings.repeatCount;
+        statusEl.textContent = 'Rest before next session';
+        timeEl.textContent = formatTime(repeatDelayLeft);
+        detailsEl.textContent = `Next session ${currentSession} of ${totalSessions} starts soon`;
       } else {
         const step = settings.steps[stepIndex];
         const phase = getPhaseLabel(step.type);
-        const displayRound = Math.min(round, settings.rounds);
         const stepNumber = stepIndex + 1;
         statusEl.textContent = active ? `${phase}` : `${phase} ready`;
         timeEl.textContent = formatTime(timeLeft);
-        detailsEl.textContent = `${phase}, step ${stepNumber} of ${settings.steps.length}, round ${displayRound} of ${settings.rounds}${settings.repeat ? ' · repeating enabled' : ''}`;
+        detailsEl.textContent = `Interval ${stepNumber} of ${settings.steps.length}`;
       }
       pauseBtn.disabled = !active;
     }
@@ -410,12 +431,9 @@
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         let frequencies = [];
         let durations = [];
-        if (type === 'High') {
+        if (type === 'Work' || type === 'High' || type === 'Low') {
           frequencies = [880, 1100, 1320];
           durations = [0.08, 0.08, 0.08];
-        } else if (type === 'Low') {
-          frequencies = [660, 550, 440];
-          durations = [0.1, 0.1, 0.1];
         } else { // Rest
           frequencies = [440, 330, 220];
           durations = [0.15, 0.15, 0.15];
@@ -444,12 +462,22 @@
       if (stepIndex >= settings.steps.length) {
         round += 1;
         if (round > settings.rounds) {
-          if (settings.repeat) {
+          const totalSessions = 1 + settings.repeatCount;
+          if (currentSession < totalSessions) {
+            currentSession += 1;
+            if (settings.repeatDelay > 0) {
+              isBetweenRepeats = true;
+              repeatDelayLeft = settings.repeatDelay;
+              statusEl.textContent = 'Rest before next session';
+              detailsEl.textContent = `Next session ${currentSession} of ${totalSessions} starts soon`;
+              return;
+            }
             round = 1;
             stepIndex = 0;
             timeLeft = settings.steps[0].duration;
-            statusEl.textContent = 'Session repeating';
-            playBeep('High');
+            const firstType = settings.steps[0].type;
+            statusEl.textContent = getPhaseLabel(firstType);
+            playBeep(firstType);
             return;
           }
           clearInterval(timerId);
@@ -459,19 +487,16 @@
           detailsEl.textContent = `Completed ${settings.rounds} rounds.`;
           pauseBtn.disabled = true;
           exitFullscreen();
-          playBeep('High');
+          playBeep('Work');
           return;
         }
         stepIndex = 0;
       }
       timeLeft = settings.steps[stepIndex].duration;
       const nextType = settings.steps[stepIndex].type;
-      if (nextType === 'High') {
-        statusEl.textContent = 'Back to high intensity';
-        playBeep('High');
-      } else if (nextType === 'Low') {
-        statusEl.textContent = 'Recover now';
-        playBeep('Low');
+      if (nextType === 'Work' || nextType === 'High' || nextType === 'Low') {
+        statusEl.textContent = 'Back to work';
+        playBeep('Work');
       } else {
         statusEl.textContent = 'Take a rest';
         playBeep('Rest');
@@ -497,6 +522,19 @@
             countdownTime--;
             if (countdownTime <= 0) {
               isCountdown = false;
+              timeLeft = settings.steps[0].duration;
+              const firstType = settings.steps[0].type;
+              statusEl.textContent = getPhaseLabel(firstType);
+              playBeep(firstType);
+              timeEl.classList.add('updating');
+              setTimeout(() => timeEl.classList.remove('updating'), 500);
+            }
+          } else if (isBetweenRepeats) {
+            repeatDelayLeft -= 1;
+            if (repeatDelayLeft <= 0) {
+              isBetweenRepeats = false;
+              round = 1;
+              stepIndex = 0;
               timeLeft = settings.steps[0].duration;
               const firstType = settings.steps[0].type;
               statusEl.textContent = getPhaseLabel(firstType);
@@ -534,6 +572,9 @@
       pauseTimer();
       stepIndex = 0;
       round = 1;
+      currentSession = 1;
+      isBetweenRepeats = false;
+      repeatDelayLeft = 0;
       timeLeft = settings.steps[0].duration;
       isCountdown = false;
       countdownTime = 0;
@@ -547,7 +588,7 @@
     }
 
     addStepBtn.addEventListener('click', () => {
-      intervalList.appendChild(createIntervalRow({ type: 'Low', min: 0, sec: 15 }));
+      intervalList.appendChild(createIntervalRow({ type: 'Rest', min: 0, sec: 15 }));
       resetTimer();
     });
 
@@ -558,7 +599,7 @@
     startBtn.addEventListener('click', startTimer);
     pauseBtn.addEventListener('click', pauseTimer);
     resetBtn.addEventListener('click', resetTimer);
-    [roundsInput, repeatInput, fullscreenInput].forEach(input => input.addEventListener('input', onInputChanged));
+    [roundsInput, repeatCountInput, repeatDelayInput, fullscreenInput].forEach(input => input.addEventListener('input', onInputChanged));
 
     setDefaultIntervals();
     populateSavedTimers();

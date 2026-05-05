@@ -167,7 +167,7 @@
       </div>
     </div>
 
-    <div class="footer">v0.4</code></div>
+    <div class="footer">v0.5/code></div>
   </div>
 
   <script>
@@ -418,10 +418,11 @@
       } else {
         const step = settings.steps[stepIndex];
         const phase = getPhaseLabel(step.type);
-        const stepNumber = stepIndex + 1;
+        const totalWorkIntervals = settings.steps.filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
+        const currentWorkInterval = settings.steps.slice(0, stepIndex + 1).filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
         statusEl.textContent = active ? `${phase}` : `${phase} ready`;
         timeEl.textContent = formatTime(timeLeft);
-        detailsEl.textContent = `Interval ${stepNumber} of ${settings.steps.length}`;
+        detailsEl.textContent = `Interval ${currentWorkInterval} of ${totalWorkIntervals}`;
       }
       pauseBtn.disabled = !active;
     }

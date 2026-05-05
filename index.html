@@ -136,7 +136,7 @@
       </div>
     </div>
 
-    <div class="footer">v0.2</code></div>
+    <div class="footer">v0.3</code></div>
   </div>
 
   <script>
@@ -158,6 +158,13 @@
     const resetBtn = document.getElementById('resetBtn');
     const timerCard = document.getElementById('timerCard');
 
+    if (!isFullscreenSupported()) {
+      fullscreenInput.checked = false;
+      fullscreenInput.disabled = true;
+      fullscreenInput.parentElement.style.opacity = '0.5';
+      fullscreenInput.parentElement.title = 'Fullscreen not supported on this device';
+    }
+
     let timerId = null;
     let timeLeft = 0;
     let round = 1;
@@ -166,7 +173,12 @@
     let isCountdown = false;
     let countdownTime = 0;
 
+    function isFullscreenSupported() {
+      return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
+    }
+
     function enterFullscreen() {
+      if (!isFullscreenSupported()) return;
       const elem = timerCard;
       if (elem.requestFullscreen) {
         elem.requestFullscreen();

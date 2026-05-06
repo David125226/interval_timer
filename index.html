@@ -20,7 +20,7 @@
     label { display: flex; flex-direction: column; font-size: 0.9rem; color: #b0bec5; font-weight: 500; }
     select, input[type="number"], input[type="text"] { width: 120px; padding: 12px 16px; margin-top: 8px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #eee; font-size: 1rem; transition: border-color 0.3s ease, box-shadow 0.3s ease; }
     select:focus, input[type="number"]:focus, input[type="text"]:focus { outline: none; border-color: #4ecdc4; box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2); }
-    .interval-row { display: grid; grid-template-columns: 130px 80px 80px 100px; gap: 12px; align-items: end; margin-bottom: 16px; padding: 16px; background: rgba(255, 255, 255, 0.02); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); transition: background 0.3s ease; }
+    .interval-row { display: grid; grid-template-columns: 1fr 130px 80px 80px 100px; gap: 12px; align-items: end; margin-bottom: 16px; padding: 16px; background: rgba(255, 255, 255, 0.02); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); transition: background 0.3s ease; }
     .interval-row:hover { background: rgba(255, 255, 255, 0.05); }
     .interval-row label { margin: 0; min-width: 0; }
     .interval-row select, .interval-row input[type="number"] { width: 100%; box-sizing: border-box; margin-top: 6px; }
@@ -108,26 +108,26 @@
       <div class="card">
         <div style="margin-top: 20px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
-            <strong>Interval sequence</strong>
+            <strong>Interval Sequence</strong>
             <button id="addStepBtn" type="button">Add interval</button>
           </div>
         <div id="intervalList"></div>
       </div>
       <div class="row" style="margin-top: 20px;">
-        <label>Rounds
-          <input id="rounds" type="number" min="1" value="8" />
+        <label>Repeat Interval Sequence
+          <input id="rounds" type="number" min="1" value="1" />
         </label>
-        <label>Repeat sessions
+        <label>No. Rounds
           <select id="repeatCount">
-            <option value="0">0</option>
             <option value="1">1</option>
             <option value="2">2</option>
             <option value="3">3</option>
             <option value="4">4</option>
             <option value="5">5</option>
+            <option value="6">6</option>
           </select>
         </label>
-        <label>Delay between sessions
+        <label>Delay Between Rounds
           <div style="display:flex; align-items:center; gap:8px;">
             <input id="repeatDelay" type="number" min="0" value="15" style="width: 100px;" />
             <span style="font-size:0.9rem; color:#90a4ae;">sec</span>
@@ -167,7 +167,7 @@
       </div>
     </div>
 
-    <div class="footer">v0.6</code></div>
+    <div class="footer">v0.7</code></div>
   </div>
 
   <script>
@@ -257,10 +257,14 @@
       }
     }
 
-    function createIntervalRow(step = { type: 'Work', min: 0, sec: 30 }) {
+    function createIntervalRow(step = { type: 'Work', min: 0, sec: 30, name: '' }) {
       const row = document.createElement('div');
       row.className = 'interval-row';
       row.innerHTML = `
+        <label class="interval-name-label">
+          Exercise name
+          <input class="interval-name" type="text" placeholder="e.g. Squats" value="${step.name || ''}" style="width:100%; box-sizing:border-box;" />
+        </label>
         <label>
           Type
           <select class="interval-type">
@@ -281,10 +285,16 @@
       const typeSelect = row.querySelector('.interval-type');
       const minInput = row.querySelector('.interval-min');
       const secInput = row.querySelector('.interval-sec');
+      const nameLabel = row.querySelector('.interval-name-label');
       const removeBtn = row.querySelector('.remove-step');
       typeSelect.value = step.type;
+      const updateNameVisibility = () => {
+        const isWork = typeSelect.value === 'Work' || typeSelect.value === 'High' || typeSelect.value === 'Low';
+        nameLabel.style.visibility = isWork ? '' : 'hidden';
+      };
+      updateNameVisibility();
       const resetOnChange = () => resetTimer();
-      typeSelect.addEventListener('change', resetOnChange);
+      typeSelect.addEventListener('change', () => { updateNameVisibility(); resetTimer(); });
       minInput.addEventListener('input', resetOnChange);
       secInput.addEventListener('input', resetOnChange);
       removeBtn.addEventListener('click', () => {
@@ -301,8 +311,6 @@
       const defaults = [
         { type: 'Work', min: 0, sec: 30 },
         { type: 'Rest', min: 0, sec: 15 },
-        { type: 'Work', min: 0, sec: 30 },
-        { type: 'Rest', min: 0, sec: 15 },
       ];
       defaults.forEach(step => intervalList.appendChild(createIntervalRow(step)));
     }
@@ -312,7 +320,8 @@
         const type = row.querySelector('.interval-type').value;
         const min = Number(row.querySelector('.interval-min').value) || 0;
         const sec = Number(row.querySelector('.interval-sec').value) || 0;
-        return { type, min, sec };
+        const name = row.querySelector('.interval-name').value.trim();
+        return { type, min, sec, name };
       });
     }
 
@@ -381,12 +390,13 @@
         const type = row.querySelector('.interval-type').value;
         const min = Number(row.querySelector('.interval-min').value) || 0;
         const sec = Number(row.querySelector('.interval-sec').value) || 0;
-        return { type, duration: Math.max(1, min * 60 + sec) };
+        const name = row.querySelector('.interval-name').value.trim();
+        return { type, duration: Math.max(1, min * 60 + sec), name };
       }).filter(step => step.duration > 0);
       return {
         steps: steps.length ? steps : [{ type: 'Work', duration: 30 }],
         rounds: Math.max(1, Number(roundsInput.value) || 1),
-        repeatCount: Math.max(0, Number(repeatCountInput.value) || 0),
+        repeatCount: Math.max(1, Number(repeatCountInput.value) || 1),
         repeatDelay: Math.max(0, Number(repeatDelayInput.value) || 0),
       };
     }
@@ -402,6 +412,18 @@
       return 'Rest';
     }
 
+    function getNextWorkName(steps, currentStepIndex) {
+      for (let i = currentStepIndex + 1; i < steps.length; i++) {
+        const s = steps[i];
+        if ((s.type === 'Work' || s.type === 'High' || s.type === 'Low') && s.name) return s.name;
+      }
+      for (let i = 0; i <= currentStepIndex; i++) {
+        const s = steps[i];
+        if ((s.type === 'Work' || s.type === 'High' || s.type === 'Low') && s.name) return s.name;
+      }
+      return '';
+    }
+
     function updateDisplay() {
       const settings = getSettings();
       const timerName = timerNameInput.value.trim() || 'Untitled Timer';
@@ -411,18 +433,28 @@
         timeEl.textContent = countdownTime.toString();
         detailsEl.textContent = 'Starting in...';
       } else if (isBetweenRepeats) {
-        const totalSessions = 1 + settings.repeatCount;
+        const totalSessions = settings.repeatCount;
         statusEl.textContent = 'Rest before next session';
         timeEl.textContent = formatTime(repeatDelayLeft);
         detailsEl.textContent = `Next session ${currentSession} of ${totalSessions} starts soon`;
       } else {
         const step = settings.steps[stepIndex];
         const phase = getPhaseLabel(step.type);
-        const totalWorkIntervals = settings.steps.filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
-        const currentWorkInterval = settings.steps.slice(0, stepIndex + 1).filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
-        statusEl.textContent = active ? `${phase}` : `${phase} ready`;
+        const isWork = step.type === 'Work' || step.type === 'High' || step.type === 'Low';
+        const workIntervalsPerSequence = settings.steps.filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
+        const totalWorkIntervals = workIntervalsPerSequence * settings.rounds;
+        const currentWorkIntervalInSequence = settings.steps.slice(0, stepIndex + 1).filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
+        const currentWorkInterval = (round - 1) * workIntervalsPerSequence + currentWorkIntervalInSequence;
+        if (isWork) {
+          const label = active ? phase : `${phase} ready`;
+          statusEl.textContent = step.name ? `${label} — ${step.name}` : label;
+        } else {
+          const nextName = getNextWorkName(settings.steps, stepIndex);
+          const label = active ? phase : `${phase} ready`;
+          statusEl.textContent = nextName ? `${label} — Next: ${nextName}` : label;
+        }
         timeEl.textContent = formatTime(timeLeft);
-        detailsEl.textContent = `Interval ${currentWorkInterval} of ${totalWorkIntervals}`;
+        detailsEl.textContent = `Interval ${currentWorkInterval} of ${totalWorkIntervals} | Round ${currentSession} of ${settings.repeatCount}`;
       }
       pauseBtn.disabled = !active;
     }
@@ -440,13 +472,25 @@
       }
     }
 
+    function playWorkStart() { playBell(); }
+    function playRestStart() {}
+
     function advanceStep() {
       const settings = getSettings();
       stepIndex += 1;
+      if (stepIndex < settings.steps.length) {
+        const totalSessions = settings.repeatCount;
+        const remainingAllRest = settings.steps.slice(stepIndex).every(
+          s => s.type !== 'Work' && s.type !== 'High' && s.type !== 'Low'
+        );
+        if (remainingAllRest && round === settings.rounds && currentSession < totalSessions) {
+          stepIndex = settings.steps.length;
+        }
+      }
       if (stepIndex >= settings.steps.length) {
         round += 1;
         if (round > settings.rounds) {
-          const totalSessions = 1 + settings.repeatCount;
+          const totalSessions = settings.repeatCount;
           if (currentSession < totalSessions) {
             currentSession += 1;
             if (settings.repeatDelay > 0) {

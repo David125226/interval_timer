@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#2979ff" />
   <link rel="manifest" href="manifest.json" />
   <title>Group Fitness Interval Timer</title>
@@ -56,7 +56,7 @@
       align-items: center;
       gap: 32px;
       margin: 0;
-      padding: 0 32px;
+      padding: env(safe-area-inset-top, 0px) calc(32px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) calc(32px + env(safe-area-inset-left, 0px));
       background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
       border: none;
       border-radius: 0;
@@ -107,7 +107,7 @@
   <div class="page">
       <div class="hero">
         <img class="logo" src="ff_logo.PNG" alt="Fit Factory logo">
-        <h1>Group Fitness Interval Timer</h1>
+        <h1>Group Fitness Interval Timer <span style="font-size: 1rem; font-weight: 400; color: #90a4ae; -webkit-text-fill-color: #90a4ae;">v0.9</span></h1>
       </div>
       <div class="card">
         <div style="margin-top: 20px;">
@@ -143,13 +143,18 @@
         </label>
       </div>
       <div class="row" style="margin-top: 20px;">
-        <label>Timer name
+        <label>Display Name
+          <input id="displayName" type="text" placeholder="Shown on screen during timer" style="width: 200px;" />
+        </label>
+      </div>
+      <div class="row" style="margin-top: 20px;">
+        <label>Timer Name
           <input id="timerName" type="text" placeholder="e.g., HIIT Session" style="width: 200px;" />
         </label>
         <button id="saveBtn" type="button" style="margin-top: 24px;">Save Timer</button>
       </div>
       <div class="row" style="margin-top: 20px;">
-        <label>Load saved timer
+        <label>Load Saved Timer
           <select id="loadTimer">
             <option value="">-- Select a timer --</option>
           </select>
@@ -171,7 +176,6 @@
       </div>
     </div>
 
-    <div class="footer">v0.8</code></div>
   </div>
 
   <script>
@@ -182,6 +186,7 @@
     const intervalList = document.getElementById('intervalList');
     const addStepBtn = document.getElementById('addStepBtn');
     const timerNameInput = document.getElementById('timerName');
+    const displayNameInput = document.getElementById('displayName');
     const saveBtn = document.getElementById('saveBtn');
     const loadTimerSelect = document.getElementById('loadTimer');
     const deleteBtn = document.getElementById('deleteBtn');
@@ -343,6 +348,7 @@
         repeatCount: repeatCountInput.value,
         repeatDelay: repeatDelayInput.value,
         fullscreen: fullscreenInput.checked,
+        displayName: displayNameInput.value.trim(),
       };
       localStorage.setItem(`timer_${name}`, JSON.stringify(timerData));
       timerNameInput.value = '';
@@ -373,6 +379,7 @@
       repeatDelayInput.value = data.repeatDelay ?? 15;
       fullscreenInput.checked = data.fullscreen;
       timerNameInput.value = name;
+      displayNameInput.value = data.displayName ?? '';
       resetTimer();
     }
 
@@ -428,17 +435,17 @@
 
     function updateDisplay() {
       const settings = getSettings();
-      const timerName = timerNameInput.value.trim() || 'Untitled Timer';
-      timerNameDisplay.textContent = timerName;
+      const displayName = displayNameInput.value.trim();
+      timerNameDisplay.textContent = displayName;
+      timerNameDisplay.style.display = displayName ? '' : 'none';
       if (isCountdown) {
         statusEl.textContent = 'Get Ready';
         timeEl.textContent = countdownTime.toString();
         detailsEl.textContent = 'Starting in...';
       } else if (isBetweenRepeats) {
-        const totalSessions = settings.repeatCount;
-        statusEl.textContent = 'Rest before next session';
+        statusEl.textContent = `Rest — Round ${currentSession} starts in...`;
         timeEl.textContent = formatTime(repeatDelayLeft);
-        detailsEl.textContent = `Next session ${currentSession} of ${totalSessions} starts soon`;
+        detailsEl.textContent = '';
       } else {
         const step = settings.steps[stepIndex];
         const phase = getPhaseLabel(step.type);

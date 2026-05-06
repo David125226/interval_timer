@@ -167,7 +167,7 @@
       </div>
     </div>
 
-    <div class="footer">v0.5</code></div>
+    <div class="footer">v0.6</code></div>
   </div>
 
   <script>
@@ -427,33 +427,16 @@
       pauseBtn.disabled = !active;
     }
 
-    function playBeep(type) {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        let frequencies = [];
-        let durations = [];
-        if (type === 'Work' || type === 'High' || type === 'Low') {
-          frequencies = [880, 1100, 1320];
-          durations = [0.08, 0.08, 0.08];
-        } else { // Rest
-          frequencies = [440, 330, 220];
-          durations = [0.15, 0.15, 0.15];
-        }
-        let startTime = ctx.currentTime;
-        frequencies.forEach((freq, index) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.frequency.value = freq;
-          gain.gain.setValueAtTime(0.2, startTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, startTime + durations[index]);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(startTime);
-          osc.stop(startTime + durations[index]);
-          startTime += durations[index];
-        });
-      } catch (error) {
-        console.warn('Audio unavailable', error);
+    const bellAudio = new Audio('Boxing Triple Bell.mp3');
+
+    function playBell() {
+      bellAudio.currentTime = 0;
+      bellAudio.play().catch(() => {});
+    }
+
+    function playPhaseSound(type) {
+      if (type === 'Work' || type === 'High' || type === 'Low') {
+        playBell();
       }
     }
 
@@ -478,7 +461,7 @@
             timeLeft = settings.steps[0].duration;
             const firstType = settings.steps[0].type;
             statusEl.textContent = getPhaseLabel(firstType);
-            playBeep(firstType);
+            playPhaseSound(firstType);
             return;
           }
           clearInterval(timerId);
@@ -488,7 +471,7 @@
           detailsEl.textContent = `Completed ${settings.rounds} rounds.`;
           pauseBtn.disabled = true;
           exitFullscreen();
-          playBeep('Work');
+
           return;
         }
         stepIndex = 0;
@@ -497,10 +480,10 @@
       const nextType = settings.steps[stepIndex].type;
       if (nextType === 'Work' || nextType === 'High' || nextType === 'Low') {
         statusEl.textContent = 'Back to work';
-        playBeep('Work');
+        playWorkStart();
       } else {
         statusEl.textContent = 'Take a rest';
-        playBeep('Rest');
+        playRestStart();
       }
       timeEl.classList.add('updating');
       setTimeout(() => timeEl.classList.remove('updating'), 500);
@@ -526,7 +509,7 @@
               timeLeft = settings.steps[0].duration;
               const firstType = settings.steps[0].type;
               statusEl.textContent = getPhaseLabel(firstType);
-              playBeep(firstType);
+              playPhaseSound(firstType);
               timeEl.classList.add('updating');
               setTimeout(() => timeEl.classList.remove('updating'), 500);
             }
@@ -539,12 +522,16 @@
               timeLeft = settings.steps[0].duration;
               const firstType = settings.steps[0].type;
               statusEl.textContent = getPhaseLabel(firstType);
-              playBeep(firstType);
+              playPhaseSound(firstType);
               timeEl.classList.add('updating');
               setTimeout(() => timeEl.classList.remove('updating'), 500);
             }
           } else {
             if (timeLeft <= 0) {
+              const currentStep = settings.steps[stepIndex];
+              if (currentStep && (currentStep.type === 'Work' || currentStep.type === 'High' || currentStep.type === 'Low')) {
+                playBell();
+              }
               advanceStep();
             } else {
               timeLeft -= 1;

@@ -20,11 +20,15 @@
     label { display: flex; flex-direction: column; font-size: 0.9rem; color: #b0bec5; font-weight: 500; }
     select, input[type="number"], input[type="text"] { width: 120px; padding: 12px 16px; margin-top: 8px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #eee; font-size: 1rem; transition: border-color 0.3s ease, box-shadow 0.3s ease; }
     select:focus, input[type="number"]:focus, input[type="text"]:focus { outline: none; border-color: #4ecdc4; box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2); }
-    .interval-row { display: grid; grid-template-columns: 1fr 130px 80px 80px 100px; gap: 12px; align-items: end; margin-bottom: 16px; padding: 16px; background: rgba(255, 255, 255, 0.02); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); transition: background 0.3s ease; }
+    .interval-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 16px; padding: 16px; background: rgba(255, 255, 255, 0.02); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); transition: background 0.3s ease; }
     .interval-row:hover { background: rgba(255, 255, 255, 0.05); }
     .interval-row label { margin: 0; min-width: 0; }
-    .interval-row select, .interval-row input[type="number"] { width: 100%; box-sizing: border-box; margin-top: 6px; }
-    .interval-row button { width: 100%; min-width: 0; padding: 10px 12px; margin: 0; justify-self: stretch; box-sizing: border-box; }
+    .interval-row button { min-width: 0; padding: 10px 12px; margin: 0; box-sizing: border-box; align-self: flex-end; }
+    .interval-name-label { flex: 1; min-width: 140px; }
+    .interval-name-label input { width: 100%; box-sizing: border-box; }
+    .duration-group { display: flex; gap: 8px; align-items: flex-end; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.08); }
+    .duration-group .group-label { font-size: 0.85rem; color: #90a4ae; font-weight: 700; padding-bottom: 14px; min-width: 30px; }
+    .duration-group input[type="number"] { width: 72px; box-sizing: border-box; margin-top: 6px; padding-right: 4px; }
     input[type="checkbox"] { margin-right: 12px; transform: scale(1.3); accent-color: #ff6b6b; }
     button { border: none; border-radius: 12px; padding: 14px 24px; margin: 8px 6px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer; background: linear-gradient(45deg, #ff6b6b, #ffa726); color: white; transition: transform 0.2s ease, box-shadow 0.2s ease; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3); }
     button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4); }
@@ -167,7 +171,7 @@
       </div>
     </div>
 
-    <div class="footer">v0.7</code></div>
+    <div class="footer">v0.8</code></div>
   </div>
 
   <script>
@@ -257,47 +261,29 @@
       }
     }
 
-    function createIntervalRow(step = { type: 'Work', min: 0, sec: 30, name: '' }) {
+    function createIntervalRow(step = { name: '', workMin: 0, workSec: 30, restMin: 0, restSec: 15 }) {
       const row = document.createElement('div');
       row.className = 'interval-row';
       row.innerHTML = `
         <label class="interval-name-label">
           Exercise name
-          <input class="interval-name" type="text" placeholder="e.g. Squats" value="${step.name || ''}" style="width:100%; box-sizing:border-box;" />
+          <input class="interval-name" type="text" placeholder="e.g. Squats" value="${step.name || ''}" />
         </label>
-        <label>
-          Type
-          <select class="interval-type">
-            <option value="Work">Work</option>
-            <option value="Rest">Rest</option>
-          </select>
-        </label>
-        <label>
-          Minutes
-          <input class="interval-min" type="number" min="0" value="${step.min}" />
-        </label>
-        <label>
-          Seconds
-          <input class="interval-sec" type="number" min="0" max="59" value="${step.sec}" />
-        </label>
+        <div class="duration-group">
+          <span class="group-label">Work</span>
+          <label>Min<input class="work-min" type="number" min="0" value="${step.workMin ?? 0}" /></label>
+          <label>Sec<input class="work-sec" type="number" min="0" max="59" value="${step.workSec ?? 30}" /></label>
+        </div>
+        <div class="duration-group">
+          <span class="group-label">Rest</span>
+          <label>Min<input class="rest-min" type="number" min="0" value="${step.restMin ?? 0}" /></label>
+          <label>Sec<input class="rest-sec" type="number" min="0" max="59" value="${step.restSec ?? 15}" /></label>
+        </div>
         <button type="button" class="remove-step">Remove</button>
       `;
-      const typeSelect = row.querySelector('.interval-type');
-      const minInput = row.querySelector('.interval-min');
-      const secInput = row.querySelector('.interval-sec');
-      const nameLabel = row.querySelector('.interval-name-label');
-      const removeBtn = row.querySelector('.remove-step');
-      typeSelect.value = step.type;
-      const updateNameVisibility = () => {
-        const isWork = typeSelect.value === 'Work' || typeSelect.value === 'High' || typeSelect.value === 'Low';
-        nameLabel.style.visibility = isWork ? '' : 'hidden';
-      };
-      updateNameVisibility();
       const resetOnChange = () => resetTimer();
-      typeSelect.addEventListener('change', () => { updateNameVisibility(); resetTimer(); });
-      minInput.addEventListener('input', resetOnChange);
-      secInput.addEventListener('input', resetOnChange);
-      removeBtn.addEventListener('click', () => {
+      row.querySelectorAll('input').forEach(input => input.addEventListener('input', resetOnChange));
+      row.querySelector('.remove-step').addEventListener('click', () => {
         if (intervalList.children.length > 1) {
           row.remove();
           resetTimer();
@@ -308,26 +294,41 @@
 
     function setDefaultIntervals() {
       intervalList.innerHTML = '';
-      const defaults = [
-        { type: 'Work', min: 0, sec: 30 },
-        { type: 'Rest', min: 0, sec: 15 },
-      ];
-      defaults.forEach(step => intervalList.appendChild(createIntervalRow(step)));
+      intervalList.appendChild(createIntervalRow({ name: '', workMin: 0, workSec: 30, restMin: 0, restSec: 15 }));
     }
 
     function getIntervalData() {
-      return Array.from(intervalList.children).map(row => {
-        const type = row.querySelector('.interval-type').value;
-        const min = Number(row.querySelector('.interval-min').value) || 0;
-        const sec = Number(row.querySelector('.interval-sec').value) || 0;
-        const name = row.querySelector('.interval-name').value.trim();
-        return { type, min, sec, name };
-      });
+      return Array.from(intervalList.children).map(row => ({
+        name: row.querySelector('.interval-name').value.trim(),
+        workMin: Number(row.querySelector('.work-min').value) || 0,
+        workSec: Number(row.querySelector('.work-sec').value) || 0,
+        restMin: Number(row.querySelector('.rest-min').value) || 0,
+        restSec: Number(row.querySelector('.rest-sec').value) || 0,
+      }));
     }
 
     function loadIntervalData(intervals) {
       intervalList.innerHTML = '';
-      intervals.forEach(step => intervalList.appendChild(createIntervalRow(step)));
+      if (!intervals.length) return;
+      if ('type' in intervals[0]) {
+        let i = 0;
+        while (i < intervals.length) {
+          const s = intervals[i];
+          if (s.type === 'Work' || s.type === 'High' || s.type === 'Low') {
+            const next = intervals[i + 1];
+            const hasRest = next && next.type === 'Rest';
+            intervalList.appendChild(createIntervalRow({
+              name: s.name || '',
+              workMin: s.min || 0, workSec: s.sec || 0,
+              restMin: hasRest ? (next.min || 0) : 0,
+              restSec: hasRest ? (next.sec || 0) : 0,
+            }));
+            i += hasRest ? 2 : 1;
+          } else { i++; }
+        }
+      } else {
+        intervals.forEach(step => intervalList.appendChild(createIntervalRow(step)));
+      }
     }
 
     function saveTimer() {
@@ -386,13 +387,14 @@
     }
 
     function getSettings() {
-      const steps = Array.from(intervalList.children).map(row => {
-        const type = row.querySelector('.interval-type').value;
-        const min = Number(row.querySelector('.interval-min').value) || 0;
-        const sec = Number(row.querySelector('.interval-sec').value) || 0;
+      const steps = [];
+      Array.from(intervalList.children).forEach(row => {
         const name = row.querySelector('.interval-name').value.trim();
-        return { type, duration: Math.max(1, min * 60 + sec), name };
-      }).filter(step => step.duration > 0);
+        const workDuration = (Number(row.querySelector('.work-min').value) || 0) * 60 + (Number(row.querySelector('.work-sec').value) || 0);
+        const restDuration = (Number(row.querySelector('.rest-min').value) || 0) * 60 + (Number(row.querySelector('.rest-sec').value) || 0);
+        if (workDuration > 0) steps.push({ type: 'Work', duration: workDuration, name });
+        if (restDuration > 0) steps.push({ type: 'Rest', duration: restDuration, name: '' });
+      });
       return {
         steps: steps.length ? steps : [{ type: 'Work', duration: 30 }],
         rounds: Math.max(1, Number(roundsInput.value) || 1),
@@ -620,7 +622,7 @@
     }
 
     addStepBtn.addEventListener('click', () => {
-      intervalList.appendChild(createIntervalRow({ type: 'Rest', min: 0, sec: 15 }));
+      intervalList.appendChild(createIntervalRow({ name: '', workMin: 0, workSec: 30, restMin: 0, restSec: 15 }));
       resetTimer();
     });
 

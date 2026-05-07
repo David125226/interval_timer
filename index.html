@@ -81,6 +81,14 @@
       color: #fff;
       text-shadow: 0 0 40px rgba(255, 255, 255, 0.7);
     }
+    .fullscreen-card .timer.phase-work {
+      color: #ff3333;
+      text-shadow: 0 0 40px rgba(255, 51, 51, 0.7);
+    }
+    .fullscreen-card .timer.phase-rest {
+      color: #33cc33;
+      text-shadow: 0 0 40px rgba(51, 204, 51, 0.7);
+    }
     .fullscreen-card .details {
       font-size: 2.8rem;
       margin: 0;
@@ -438,6 +446,7 @@
       const displayName = displayNameInput.value.trim();
       timerNameDisplay.textContent = displayName;
       timerNameDisplay.style.display = displayName ? '' : 'none';
+      let currentPhase = null;
       if (isCountdown) {
         statusEl.textContent = 'Get Ready';
         timeEl.textContent = countdownTime.toString();
@@ -446,10 +455,12 @@
         statusEl.textContent = `Rest — Round ${currentSession} starts in...`;
         timeEl.textContent = formatTime(repeatDelayLeft);
         detailsEl.textContent = '';
+        currentPhase = 'rest';
       } else {
         const step = settings.steps[stepIndex];
         const phase = getPhaseLabel(step.type);
         const isWork = step.type === 'Work' || step.type === 'High' || step.type === 'Low';
+        currentPhase = isWork ? 'work' : 'rest';
         const workIntervalsPerSequence = settings.steps.filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
         const totalWorkIntervals = workIntervalsPerSequence * settings.rounds;
         const currentWorkIntervalInSequence = settings.steps.slice(0, stepIndex + 1).filter(s => s.type === 'Work' || s.type === 'High' || s.type === 'Low').length;
@@ -466,6 +477,11 @@
         detailsEl.textContent = `Interval ${currentWorkInterval} of ${totalWorkIntervals} | Round ${currentSession} of ${settings.repeatCount}`;
       }
       pauseBtn.disabled = !active;
+      const inFullscreen = timerCard.classList.contains('fullscreen-card');
+      timeEl.classList.remove('phase-work', 'phase-rest');
+      if (inFullscreen && currentPhase) {
+        timeEl.classList.add(`phase-${currentPhase}`);
+      }
     }
 
     const bellAudio = new Audio('Boxing Triple Bell.mp3');

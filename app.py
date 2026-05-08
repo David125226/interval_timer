@@ -90,10 +90,19 @@ def delete_timer(name):
     return jsonify({'ok': True})
 
 
-try:
-    init_db()
-except Exception as e:
-    print(f'Warning: could not initialise database — {e}')
+_db_initialized = False
+
+
+@app.before_request
+def ensure_db():
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            init_db()
+        except Exception as e:
+            print(f'Warning: could not initialise database — {e}')
+        _db_initialized = True
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))

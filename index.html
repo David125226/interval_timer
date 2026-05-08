@@ -209,13 +209,6 @@
     const resetBtn = document.getElementById('resetBtn');
     const timerCard = document.getElementById('timerCard');
 
-    if (!isFullscreenSupported()) {
-      fullscreenInput.checked = false;
-      fullscreenInput.disabled = true;
-      fullscreenInput.parentElement.style.opacity = '0.5';
-      fullscreenInput.parentElement.title = 'Fullscreen not supported on this device';
-    }
-
     let timerId = null;
     let timeLeft = 0;
     let round = 1;
@@ -232,20 +225,24 @@
     }
 
     function enterFullscreen() {
-      if (!isFullscreenSupported()) return;
-      const elem = timerCard;
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen();
-      } else if (elem.webkitRequestFullscreen) {
-        elem.webkitRequestFullscreen();
-      } else if (elem.mozRequestFullScreen) {
-        elem.mozRequestFullScreen();
-      } else if (elem.msRequestFullscreen) {
-        elem.msRequestFullscreen();
+      if (isFullscreenSupported()) {
+        const elem = timerCard;
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+          elem.mozRequestFullScreen();
+        } else if (elem.msRequestFullscreen) {
+          elem.msRequestFullscreen();
+        }
+      } else {
+        timerCard.classList.add('fullscreen-card');
       }
     }
 
     function updateFullscreenClass() {
+      if (!isFullscreenSupported()) return;
       const isFull = document.fullscreenElement === timerCard
         || document.webkitFullscreenElement === timerCard
         || document.mozFullScreenElement === timerCard
@@ -263,6 +260,10 @@
     document.addEventListener('MSFullscreenChange', onFullscreenChange);
 
     function exitFullscreen() {
+      if (!isFullscreenSupported()) {
+        timerCard.classList.remove('fullscreen-card');
+        return;
+      }
       if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
         if (document.exitFullscreen) {
           document.exitFullscreen();

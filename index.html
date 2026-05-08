@@ -164,12 +164,13 @@
         <button id="saveBtn" type="button" style="margin-top: 24px;">Save Timer</button>
       </div>
       <div class="row" style="margin-top: 20px;">
-        <label>Load Saved Timer
+        <label>Select Timer
           <select id="loadTimer">
             <option value="">-- Select a timer --</option>
           </select>
         </label>
-        <button id="deleteBtn" type="button" style="margin-top: 24px;" disabled>Delete Selected</button>
+        <button id="loadBtn" type="button" style="margin-top: 24px;" disabled>Load Timer</button>
+        <button id="deleteBtn" type="button" style="margin-top: 24px;" disabled>Delete Timer</button>
       </div>
     </div>
 
@@ -199,6 +200,7 @@
     const displayNameInput = document.getElementById('displayName');
     const saveBtn = document.getElementById('saveBtn');
     const loadTimerSelect = document.getElementById('loadTimer');
+    const loadBtn = document.getElementById('loadBtn');
     const deleteBtn = document.getElementById('deleteBtn');
     const statusEl = document.getElementById('status');
     const timeEl = document.getElementById('time');
@@ -390,7 +392,9 @@
       } catch (e) {
         console.error('Failed to load timers:', e);
       }
-      deleteBtn.disabled = loadTimerSelect.options.length <= 1;
+      const hasTimers = loadTimerSelect.options.length > 1;
+      loadBtn.disabled = !hasTimers;
+      deleteBtn.disabled = !hasTimers;
     }
 
     async function loadTimer() {
@@ -685,7 +689,7 @@
     });
 
     saveBtn.addEventListener('click', saveTimer);
-    loadTimerSelect.addEventListener('change', loadTimer);
+    loadBtn.addEventListener('click', loadTimer);
     deleteBtn.addEventListener('click', deleteTimer);
 
     startBtn.addEventListener('click', () => { unlockAudio(); startTimer(); });

@@ -221,6 +221,7 @@
     let repeatDelayLeft = 0;
 
     function isFullscreenSupported() {
+      if (isIOS) return false;
       return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
     }
 
@@ -509,7 +510,16 @@
       }
     }
 
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
     const bellAudio = new Audio('Boxing Triple Bell.mp3');
+    let audioUnlocked = false;
+
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      bellAudio.play().then(() => { bellAudio.pause(); bellAudio.currentTime = 0; audioUnlocked = true; }).catch(() => {});
+    }
 
     function playBell() {
       bellAudio.currentTime = 0;
@@ -678,7 +688,7 @@
     loadTimerSelect.addEventListener('change', loadTimer);
     deleteBtn.addEventListener('click', deleteTimer);
 
-    startBtn.addEventListener('click', startTimer);
+    startBtn.addEventListener('click', () => { unlockAudio(); startTimer(); });
     pauseBtn.addEventListener('click', pauseTimer);
     resetBtn.addEventListener('click', resetTimer);
     [roundsInput, repeatCountInput, repeatDelayInput, fullscreenInput].forEach(input => input.addEventListener('input', onInputChanged));

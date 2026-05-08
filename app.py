@@ -12,7 +12,7 @@ def db_connect():
     url = os.environ.get('DATABASE_URL', '')
     if url.startswith('postgres://'):
         url = 'postgresql://' + url[len('postgres://'):]
-    return psycopg2.connect(url)
+    return psycopg2.connect(url, connect_timeout=10)
 
 
 def init_db():

@@ -3,7 +3,7 @@
   "short_name": "Interval Timer",
   "description": "A dynamic interval timer for group fitness classes",
   "start_url": "/",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#121212",
   "theme_color": "#2979ff",

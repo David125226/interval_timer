@@ -1,27 +1,40 @@
 # Interval Timer
 
-A simple browser-based interval timer for group fitness sessions.
+A browser-based interval timer for group fitness sessions, with timers stored in PostgreSQL so they're available on any device.
 
-## Run
+## Run locally
 
-1. Open a terminal.
-2. Change into the app folder:
-   ```bash
-   cd /Users/david/python/interval_timer
+1. Install dependencies:
    ```
-3. Start the Python server:
-   ```bash
+   pip install -r requirements.txt
+   ```
+2. Set the database URL (requires a local or remote PostgreSQL instance):
+   ```
+   $env:DATABASE_URL = "postgresql://user:password@localhost/interval_timer"
+   ```
+3. Start the server:
+   ```
    python app.py
    ```
-4. Open your browser to:
-   ```text
-   http://localhost:8000
-   ```
+4. Open `http://localhost:8000`
+
+## Deploy to Railway
+
+### First time
+
+1. Push this folder to a GitHub repository.
+2. Go to [railway.app](https://railway.app) and create a new project → **Deploy from GitHub repo**.
+3. In the project, click **+ New** → **Database** → **Add PostgreSQL**. Railway sets `DATABASE_URL` automatically.
+4. Railway detects the `Procfile` and deploys automatically. Your public URL appears in the **Settings** tab.
+
+### Subsequent deploys
+
+Push to GitHub — Railway redeploys automatically.
 
 ## Features
 
-- High intensity and low intensity duration controls
-- Round count
-- Repeat session option
-- Start, pause, and reset controls
-- Browser-based timer with audible transition cues
+- Configurable work/rest intervals with named exercises
+- Round and session repeat controls
+- Fullscreen display with colour-coded timer (red = work, green = rest)
+- Audible bell on phase transitions
+- Timers saved to PostgreSQL — accessible from any device

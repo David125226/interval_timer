@@ -115,7 +115,7 @@
   <div class="page">
       <div class="hero">
         <img class="logo" src="ff_logo.PNG" alt="Fit Factory logo">
-        <h1>Group Fitness Interval Timer <span style="font-size: 1rem; font-weight: 400; color: #90a4ae; -webkit-text-fill-color: #90a4ae;">v0.9</span></h1>
+        <h1>Group Fitness Interval Timer <span style="font-size: 1rem; font-weight: 400; color: #90a4ae; -webkit-text-fill-color: #90a4ae;">v0.10</span></h1>
       </div>
       <div class="card">
         <div style="margin-top: 20px;">
@@ -344,7 +344,7 @@
       }
     }
 
-    function saveTimer() {
+    async function saveTimer() {
       const name = timerNameInput.value.trim();
       if (!name) {
         alert('Please enter a timer name');
@@ -358,46 +358,68 @@
         fullscreen: fullscreenInput.checked,
         displayName: displayNameInput.value.trim(),
       };
-      localStorage.setItem(`timer_${name}`, JSON.stringify(timerData));
-      timerNameInput.value = '';
-      populateSavedTimers();
-      alert(`Timer "${name}" saved!`);
+      try {
+        await fetch(`/api/timers/${encodeURIComponent(name)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(timerData),
+        });
+        timerNameInput.value = '';
+        await populateSavedTimers();
+        alert(`Timer "${name}" saved!`);
+      } catch (e) {
+        alert('Failed to save timer. Check your connection.');
+      }
     }
 
-    function populateSavedTimers() {
+    async function populateSavedTimers() {
       loadTimerSelect.innerHTML = '<option value="">-- Select a timer --</option>';
-      const keys = Object.keys(localStorage).filter(k => k.startsWith('timer_'));
-      keys.forEach(key => {
-        const name = key.replace('timer_', '');
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        loadTimerSelect.appendChild(option);
-      });
+      try {
+        const res = await fetch('/api/timers');
+        const names = await res.json();
+        names.forEach(name => {
+          const option = document.createElement('option');
+          option.value = name;
+          option.textContent = name;
+          loadTimerSelect.appendChild(option);
+        });
+      } catch (e) {
+        console.error('Failed to load timers:', e);
+      }
       deleteBtn.disabled = loadTimerSelect.options.length <= 1;
     }
 
-    function loadTimer() {
+    async function loadTimer() {
       const name = loadTimerSelect.value;
       if (!name) return;
-      const data = JSON.parse(localStorage.getItem(`timer_${name}`));
-      loadIntervalData(data.intervals);
-      roundsInput.value = data.rounds;
-      repeatCountInput.value = data.repeatCount ?? (data.repeat ? 1 : 0) ?? 0;
-      repeatDelayInput.value = data.repeatDelay ?? 15;
-      fullscreenInput.checked = data.fullscreen;
-      timerNameInput.value = name;
-      displayNameInput.value = data.displayName ?? '';
-      resetTimer();
+      try {
+        const res = await fetch(`/api/timers/${encodeURIComponent(name)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        loadIntervalData(data.intervals);
+        roundsInput.value = data.rounds;
+        repeatCountInput.value = data.repeatCount ?? (data.repeat ? 1 : 0) ?? 0;
+        repeatDelayInput.value = data.repeatDelay ?? 15;
+        fullscreenInput.checked = data.fullscreen;
+        timerNameInput.value = name;
+        displayNameInput.value = data.displayName ?? '';
+        resetTimer();
+      } catch (e) {
+        alert('Failed to load timer. Check your connection.');
+      }
     }
 
-    function deleteTimer() {
+    async function deleteTimer() {
       const name = loadTimerSelect.value;
       if (!name) return;
       if (confirm(`Delete timer "${name}"?`)) {
-        localStorage.removeItem(`timer_${name}`);
-        populateSavedTimers();
-        resetTimer();
+        try {
+          await fetch(`/api/timers/${encodeURIComponent(name)}`, { method: 'DELETE' });
+          await populateSavedTimers();
+          resetTimer();
+        } catch (e) {
+          alert('Failed to delete timer. Check your connection.');
+        }
       }
     }
 
@@ -536,7 +558,7 @@
           clearInterval(timerId);
           timerId = null;
           active = false;
-          statusEl.textContent = 'Done — great work!';
+          statusEl.textContent = 'Done — Great Work!';
           detailsEl.textContent = `Completed ${settings.rounds} rounds.`;
           pauseBtn.disabled = true;
           exitFullscreen();
@@ -659,11 +681,11 @@
     [roundsInput, repeatCountInput, repeatDelayInput, fullscreenInput].forEach(input => input.addEventListener('input', onInputChanged));
 
     setDefaultIntervals();
-    populateSavedTimers();
-    window.addEventListener('load', () => {
+    window.addEventListener('load', async () => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js');
       }
+      await populateSavedTimers();
       resetTimer();
     });
   </script>
